@@ -51,7 +51,7 @@ app.post('/auth/register', async(req, res) => {
     const user = new User({
         name,
         email,
-        password
+        password: passwordHash
     })
 
     try {
@@ -61,6 +61,60 @@ app.post('/auth/register', async(req, res) => {
 
     } catch(error){
         res.status(500).json({msg: error})
+    }
+})
+
+// login user
+app.post('/auth/login', async (req, res) => {
+    const {email, password} = req.body
+
+    if (!email) {
+        return res.status(422).json({msg: 'O email é obrigatório!'})
+    }
+
+    if (!password) {
+        return res.status(422).json({msg: 'A password é obrigatório!'})
+    }
+
+    // check if user exists
+    const user = await User.findOne({ email: email })
+
+    if(!user){
+        return res.status(404).json({msg: 'Usuário não encontrado!'})
+    }
+
+    // check if password match
+    const checkPassword = await bcrypt.compare(password, user.password)
+
+    if (!checkPassword){
+        return res.status(422).json({msg: 'Senha inválida!'})
+    }
+
+    try {
+        const secret = process.env.SECRET
+
+        const token = jwt.sign({
+            id: user._i,
+        }, secret,)
+
+        res.status(200).json({msg: "Autenticação realizada com sucesso", token})
+
+    } catch(err){
+        res.status(500).json({msg: err})
+    }
+
+
+})
+
+// private route
+app.get('/user/:id', async (req,res) => {
+    const id = req.params.id
+
+    // excluindo a senha do usuario do retorno na busca (-password)
+    const user = await User.findById(id, '-password')
+
+    if (!user){
+        return res.status(404).json({msg: 'usuario não encontrado'})
     }
 })
 
